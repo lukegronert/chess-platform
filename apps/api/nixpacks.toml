@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm install -g pnpm@9.15.0", "cd /app && pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "pnpm --filter @chess/api db:generate",
+  "pnpm --filter @chess/api build"
+]
+
+[start]
+cmd = "pnpm --filter @chess/api start"

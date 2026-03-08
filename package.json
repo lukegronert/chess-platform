@@ -1,6 +1,7 @@
 {
   "name": "chess-platform",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm -r build",
