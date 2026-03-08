@@ -1,5 +1,5 @@
-import type { GameMove, GameResult, GameStatus } from './game.js';
-import type { Message } from './message.js';
+import type { GameMove, GameResult, GameStatus } from './game';
+import type { Message } from './message';
 
 // ── Event name constants ───────────────────────────────────────────────────
 
