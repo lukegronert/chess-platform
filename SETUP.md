@@ -114,18 +114,65 @@ Visit:
 ## 6. Deployment
 
 ### Railway (API + Database)
+
+Railway uses `railpack.json` at the repo root — no manual build/start command configuration needed.
+
 1. Create a new Railway project
-2. Add a PostgreSQL database (Railway will set `DATABASE_URL` automatically)
-3. Add a service from GitHub, set root directory to `apps/api`
-4. Set build command: `pnpm install && pnpm db:generate && pnpm db:migrate && pnpm build`
-5. Set start command: `pnpm start`
-6. Add all environment variables from `apps/api/.env`
+2. Add a **PostgreSQL** addon — Railway sets `DATABASE_URL` automatically when linked to your service
+3. Add a service from GitHub (point at the repo root, not `apps/api`)
+4. Railway auto-detects `railpack.json` and runs:
+   - **Build**: `pnpm --filter @chess/api db:generate && pnpm --filter @chess/api db:deploy && pnpm --filter @chess/api build`
+   - **Start**: `node apps/api/dist/index.js`
+5. Set environment variables in Railway:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Auto-set by Railway PostgreSQL addon |
+| `JWT_ACCESS_SECRET` | Long random string (`openssl rand -hex 64`) |
+| `JWT_REFRESH_SECRET` | Different long random string |
+| `JWT_ACCESS_EXPIRES_IN` | `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | `7d` |
+| `CLIENT_URL` | Your Vercel URL (e.g. `https://chess-platform.vercel.app`) |
+| `R2_ACCOUNT_ID` | Cloudflare account ID hex string (not the full URL) |
+| `R2_ACCESS_KEY_ID` | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+| `R2_BUCKET_NAME` | e.g. `chess-platform-pdfs` |
+| `R2_PUBLIC_URL` | e.g. `https://pub-xxx.r2.dev` |
+
+> `PORT` is set automatically by Railway — do not set it manually.
+
+6. After first successful deploy, seed the database:
+```bash
+railway run --service <service-name> pnpm --filter @chess/api db:seed
+```
+This creates `admin@chess.school` / `admin123!` — **change the password immediately**.
+
+7. Set the healthcheck path to `/health` in Railway service settings.
+
+---
 
 ### Vercel (Web)
-1. Import the repo into Vercel
-2. Set root directory to `apps/web`
-3. Set `NEXT_PUBLIC_API_URL` to your Railway API URL
-4. Set `NEXT_PUBLIC_WS_URL` to your Railway API URL
+
+1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import this GitHub repo
+2. In project settings, configure:
+
+| Setting | Value |
+|---|---|
+| **Root Directory** | `apps/web` |
+| **Framework Preset** | Next.js (auto-detected) |
+| **Build Command** | *(leave as default — `next build`)* |
+| **Install Command** | `cd ../.. && pnpm install --frozen-lockfile` |
+
+> The install command must go up to the repo root so the `@chess/shared` workspace package is available during the build.
+
+3. Set environment variables in Vercel:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | `https://your-api.up.railway.app/api/v1` |
+| `NEXT_PUBLIC_WS_URL` | `https://your-api.up.railway.app` |
+
+4. After deploying, copy the Vercel URL and update `CLIENT_URL` in Railway so CORS allows the frontend.
 
 ---
 
