@@ -22,6 +22,9 @@ import announcementsRoutes from './routes/announcements.routes.js';
 const app = express();
 const httpServer = createServer(app);
 
+// Trust Railway/Vercel reverse proxy
+app.set('trust proxy', 1);
+
 // ── Middleware ────────────────────────────────────────────────────────────
 
 app.use(helmet());
