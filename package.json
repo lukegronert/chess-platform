@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm -r build",
+    "start": "node apps/api/dist/index.js",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
   },

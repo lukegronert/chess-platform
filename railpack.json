@@ -1,0 +1,8 @@
+{
+  "build": {
+    "cmd": "pnpm --filter @chess/api db:generate && pnpm --filter @chess/api db:deploy && pnpm --filter @chess/api build"
+  },
+  "start": {
+    "cmd": "node apps/api/dist/index.js"
+  }
+}
