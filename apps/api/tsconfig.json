@@ -6,10 +6,7 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "declaration": false,
-    "declarationMap": false,
-    "paths": {
-      "@chess/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "declarationMap": false
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
