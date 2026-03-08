@@ -18,7 +18,6 @@ export function comparePassword(password: string, hash: string): Promise<boolean
 export function signAccessToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
     expiresIn: env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions['expiresIn'],
-    subject: payload.sub,
   });
 }
 
