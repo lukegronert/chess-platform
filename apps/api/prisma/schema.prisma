@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum GameStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+enum GameResult {
+  WHITE_WINS
+  BLACK_WINS
+  DRAW
+  ABANDONED
+}
+
+enum CurriculumItemType {
+  PDF
+  GAME_REPLAY
+  EXTERNAL_LINK
+  TEXT_NOTE
+}
+
+enum MessageContextType {
+  DIRECT
+  CLASS_BOARD
+  IN_GAME
+}
+
+// ─────────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  role         Role
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  isActive     Boolean  @default(true)
+
+  refreshTokens    RefreshToken[]
+  taughtClasses    Class[]           @relation("TeacherClasses")
+  enrollments      ClassEnrollment[]
+  groupMemberships GroupMember[]
+  sentMessages     Message[]         @relation("SentMessages")
+  receivedMessages Message[]         @relation("ReceivedMessages")
+  gamesAsWhite     GameSession[]     @relation("WhitePlayer")
+  gamesAsBlack     GameSession[]     @relation("BlackPlayer")
+  uploadedPdfs     Pdf[]
+  assignments      Assignment[]
+  announcements    Announcement[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────
+// CLASSES & GROUPS
+// ─────────────────────────────────────────────
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teacherId   String
+  teacher     User     @relation("TeacherClasses", fields: [teacherId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isArchived  Boolean  @default(false)
+
+  enrollments     ClassEnrollment[]
+  groups          ClassGroup[]
+  pdfs            Pdf[]
+  announcements   Announcement[]
+  boardMessages   Message[]         @relation("ClassBoardMessages")
+  curriculumItems CurriculumItem[]
+
+  @@map("classes")
+}
+
+model ClassEnrollment {
+  id         String   @id @default(cuid())
+  classId    String
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime @default(now())
+
+  @@unique([classId, studentId])
+  @@map("class_enrollments")
+}
+
+model ClassGroup {
+  id        String   @id @default(cuid())
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  members GroupMember[]
+
+  @@map("class_groups")
+}
+
+model GroupMember {
+  id      String     @id @default(cuid())
+  groupId String
+  group   ClassGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedAt DateTime   @default(now())
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+// ─────────────────────────────────────────────
+// MESSAGING
+// ─────────────────────────────────────────────
+
+model Message {
+  id          String             @id @default(cuid())
+  senderId    String
+  sender      User               @relation("SentMessages", fields: [senderId], references: [id])
+  content     String
+  context     MessageContextType
+  recipientId String?
+  recipient   User?              @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  classId     String?
+  class       Class?             @relation("ClassBoardMessages", fields: [classId], references: [id])
+  gameId      String?
+  game        GameSession?       @relation(fields: [gameId], references: [id])
+  createdAt   DateTime           @default(now())
+  editedAt    DateTime?
+  isDeleted   Boolean            @default(false)
+
+  @@map("messages")
+}
+
+// ─────────────────────────────────────────────
+// CHESS GAMES
+// ─────────────────────────────────────────────
+
+model GameSession {
+  id            String      @id @default(cuid())
+  whitePlayerId String
+  whitePlayer   User        @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  blackPlayerId String
+  blackPlayer   User        @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  status        GameStatus  @default(PENDING)
+  result        GameResult?
+  pgn           String?
+  currentFen    String      @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime    @default(now())
+
+  moves    GameMove[]
+  messages Message[]
+
+  @@map("game_sessions")
+}
+
+model GameMove {
+  id         String      @id @default(cuid())
+  gameId     String
+  game       GameSession @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  moveNumber Int
+  san        String
+  uci        String
+  fenAfter   String
+  playedAt   DateTime    @default(now())
+
+  @@unique([gameId, moveNumber])
+  @@map("game_moves")
+}
+
+// ─────────────────────────────────────────────
+// CONTENT (PDFs / Assignments)
+// ─────────────────────────────────────────────
+
+model Pdf {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  r2Key       String   @unique
+  fileSize    Int
+  uploaderId  String
+  uploader    User     @relation(fields: [uploaderId], references: [id])
+  classId     String?
+  class       Class?   @relation(fields: [classId], references: [id])
+  createdAt   DateTime @default(now())
+
+  assignments     Assignment[]
+  curriculumItems CurriculumItem[]
+
+  @@map("pdfs")
+}
+
+model Assignment {
+  id          String    @id @default(cuid())
+  pdfId       String
+  pdf         Pdf       @relation(fields: [pdfId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignedAt  DateTime  @default(now())
+  dueAt       DateTime?
+  completedAt DateTime?
+
+  @@unique([pdfId, studentId])
+  @@map("assignments")
+}
+
+// ─────────────────────────────────────────────
+// CURRICULUM
+// ─────────────────────────────────────────────
+
+model CurriculumItem {
+  id          String             @id @default(cuid())
+  classId     String
+  class       Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  type        CurriculumItemType
+  position    Int
+  pdfId       String?
+  pdf         Pdf?               @relation(fields: [pdfId], references: [id])
+  gameId      String?
+  externalUrl String?
+  textContent String?
+  isPublished Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("curriculum_items")
+}
+
+// ─────────────────────────────────────────────
+// ANNOUNCEMENTS
+// ─────────────────────────────────────────────
+
+model Announcement {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  classId   String?
+  class     Class?   @relation(fields: [classId], references: [id])
+  title     String
+  body      String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("announcements")
+}
