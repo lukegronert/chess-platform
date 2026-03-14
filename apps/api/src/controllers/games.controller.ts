@@ -4,6 +4,8 @@ import { prisma } from '../config/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { GameResult, GameStatus } from '@chess/shared';
 import { initGame, removeGame } from '../services/game.service.js';
+import { io } from '../sockets/index.js';
+import { notifyGameChallenge } from '../sockets/messaging.socket.js';
 
 const gameInclude = {
   whitePlayer: { select: { id: true, displayName: true, avatarUrl: true } },
@@ -33,6 +35,13 @@ export async function createGame(req: Request, res: Response, next: NextFunction
       playAsWhite: z.boolean().optional().default(true),
     }).parse(req.body);
 
+    if (opponentId === req.user.sub) {
+      throw new AppError(400, 'You cannot challenge yourself');
+    }
+
+    const opponent = await prisma.user.findUnique({ where: { id: opponentId } });
+    if (!opponent) throw new AppError(404, 'Opponent not found');
+
     const whitePlayerId = playAsWhite ? req.user.sub : opponentId;
     const blackPlayerId = playAsWhite ? opponentId : req.user.sub;
 
@@ -40,6 +49,8 @@ export async function createGame(req: Request, res: Response, next: NextFunction
       data: { whitePlayerId, blackPlayerId },
       include: gameInclude,
     });
+
+    notifyGameChallenge(io, opponentId, game.id, req.user.sub, req.user.displayName);
 
     res.status(201).json(game);
   } catch (err) {
