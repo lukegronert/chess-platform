@@ -8,10 +8,23 @@ import { GameStatus, GameResult } from '@chess/shared';
 import type { GameSession } from '@chess/shared';
 import { format } from 'date-fns';
 
+type StudentOption = { id: string; displayName: string; avatarUrl: string | null };
+
 export default function StudentGamesPage() {
   const queryClient = useQueryClient();
   const [opponentId, setOpponentId] = useState('');
+  const [search, setSearch] = useState('');
   const [showChallenge, setShowChallenge] = useState(false);
+
+  const { data: students = [] } = useQuery<StudentOption[]>({
+    queryKey: ['students'],
+    queryFn: () => api.get('/users/students'),
+    enabled: showChallenge,
+  });
+
+  const filteredStudents = students.filter((s) =>
+    s.displayName.toLowerCase().includes(search.toLowerCase()),
+  );
 
   const { data: games = [] } = useQuery<GameSession[]>({
     queryKey: ['games'],
@@ -66,11 +79,27 @@ export default function StudentGamesPage() {
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
             <h2 className="font-bold text-lg mb-4">Challenge a Player</h2>
             <input
-              value={opponentId}
-              onChange={(e) => setOpponentId(e.target.value)}
-              placeholder="Player ID"
-              className="w-full border rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setOpponentId(''); }}
+              placeholder="Search by name..."
+              className="w-full border rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
+            {search && (
+              <ul className="border rounded-lg mb-4 max-h-48 overflow-y-auto divide-y">
+                {filteredStudents.length === 0 && (
+                  <li className="px-3 py-2 text-sm text-gray-400">No students found</li>
+                )}
+                {filteredStudents.map((s) => (
+                  <li
+                    key={s.id}
+                    onClick={() => { setOpponentId(s.id); setSearch(s.displayName); }}
+                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${opponentId === s.id ? 'bg-blue-50 font-medium' : ''}`}
+                  >
+                    {s.displayName}
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => challengeMutation.mutate({ opponentId, playAsWhite: true })}
@@ -79,7 +108,10 @@ export default function StudentGamesPage() {
               >
                 Challenge
               </button>
-              <button onClick={() => setShowChallenge(false)} className="flex-1 border py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => { setShowChallenge(false); setSearch(''); setOpponentId(''); }}
+                className="flex-1 border py-2 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+              >
                 Cancel
               </button>
             </div>

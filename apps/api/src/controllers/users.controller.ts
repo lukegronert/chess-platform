@@ -138,6 +138,19 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
   }
 }
 
+export async function listStudents(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const students = await prisma.user.findMany({
+      where: { role: Role.STUDENT, isActive: true, NOT: { id: req.user.sub } },
+      select: { id: true, displayName: true, avatarUrl: true },
+      orderBy: { displayName: 'asc' },
+    });
+    res.json(students);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const user = await prisma.user.findUnique({

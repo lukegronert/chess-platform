@@ -8,6 +8,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/me', usersController.getMe);
+router.get('/students', usersController.listStudents);
 router.patch('/me', usersController.updateMe);
 
 router.get('/', requireRole(Role.ADMIN), usersController.listUsers);
