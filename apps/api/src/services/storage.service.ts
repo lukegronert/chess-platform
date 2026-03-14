@@ -17,6 +17,10 @@ function getClient(): S3Client {
         accessKeyId: env.R2_ACCESS_KEY_ID,
         secretAccessKey: env.R2_SECRET_ACCESS_KEY,
       },
+      // Disable automatic CRC32 checksums — they appear in presigned URLs and
+      // cause CORS preflight failures when browsers upload directly to R2.
+      requestChecksumCalculation: 'WHEN_REQUIRED' as never,
+      responseChecksumValidation: 'WHEN_REQUIRED' as never,
     });
   }
   return s3Client;
