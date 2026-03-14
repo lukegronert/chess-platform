@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { prisma } from '../config/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { Role } from '@chess/shared';
+import { Role, GameResult } from '@chess/shared';
 
 const classSelect = {
   id: true,
@@ -235,6 +235,78 @@ export async function removeGroupMember(req: Request, res: Response, next: NextF
       },
     });
     res.json({ message: 'Member removed' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Class PDFs & Leaderboard ─────────────────────────────────────────────
+
+export async function listClassPdfs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const pdfs = await prisma.pdf.findMany({
+      where: { classId: req.params.id },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        fileSize: true,
+        uploaderId: true,
+        uploader: { select: { id: true, displayName: true } },
+        classId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(pdfs);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getLeaderboard(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const enrollments = await prisma.classEnrollment.findMany({
+      where: { classId: req.params.id },
+      select: {
+        studentId: true,
+        student: { select: { id: true, displayName: true, avatarUrl: true } },
+      },
+    });
+
+    const studentIds = enrollments.map((e) => e.studentId);
+
+    // Only count intra-class games (both players are in this class)
+    const games = await prisma.gameSession.findMany({
+      where: {
+        status: 'COMPLETED',
+        result: { not: GameResult.ABANDONED },
+        whitePlayerId: { in: studentIds },
+        blackPlayerId: { in: studentIds },
+      },
+      select: { whitePlayerId: true, blackPlayerId: true, result: true },
+    });
+
+    const stats = new Map(studentIds.map((id) => [id, { wins: 0, losses: 0, draws: 0 }]));
+
+    for (const game of games) {
+      if (game.result === GameResult.WHITE_WINS) {
+        stats.get(game.whitePlayerId)!.wins++;
+        stats.get(game.blackPlayerId)!.losses++;
+      } else if (game.result === GameResult.BLACK_WINS) {
+        stats.get(game.blackPlayerId)!.wins++;
+        stats.get(game.whitePlayerId)!.losses++;
+      } else if (game.result === GameResult.DRAW) {
+        stats.get(game.whitePlayerId)!.draws++;
+        stats.get(game.blackPlayerId)!.draws++;
+      }
+    }
+
+    const leaderboard = enrollments
+      .map((e) => ({ student: e.student, ...stats.get(e.studentId)! }))
+      .sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+
+    res.json(leaderboard);
   } catch (err) {
     next(err);
   }
