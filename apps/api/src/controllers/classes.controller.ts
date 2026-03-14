@@ -240,6 +240,35 @@ export async function removeGroupMember(req: Request, res: Response, next: NextF
   }
 }
 
+// ── Class Games ───────────────────────────────────────────────────────────
+
+export async function listClassGames(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const enrollments = await prisma.classEnrollment.findMany({
+      where: { classId: req.params.id },
+      select: { studentId: true },
+    });
+    const studentIds = enrollments.map((e) => e.studentId);
+    const games = await prisma.gameSession.findMany({
+      where: {
+        OR: [{ whitePlayerId: { in: studentIds } }, { blackPlayerId: { in: studentIds } }],
+      },
+      select: {
+        id: true,
+        status: true,
+        result: true,
+        createdAt: true,
+        whitePlayer: { select: { id: true, displayName: true } },
+        blackPlayer: { select: { id: true, displayName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(games);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ── Class PDFs & Leaderboard ─────────────────────────────────────────────
 
 export async function listClassPdfs(req: Request, res: Response, next: NextFunction): Promise<void> {
