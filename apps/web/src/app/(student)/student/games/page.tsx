@@ -7,10 +7,14 @@ import { useState } from 'react';
 import { GameStatus, GameResult } from '@chess/shared';
 import type { GameSession } from '@chess/shared';
 import { format } from 'date-fns';
+import { useOnlineUsers } from '@/hooks/useOnlineUsers';
+import { useAuth } from '@/hooks/useAuth';
 
 type StudentOption = { id: string; displayName: string; avatarUrl: string | null };
 
 export default function StudentGamesPage() {
+  const { user } = useAuth();
+  const onlineUsers = useOnlineUsers();
   const queryClient = useQueryClient();
   const [opponentId, setOpponentId] = useState('');
   const [search, setSearch] = useState('');
@@ -120,10 +124,18 @@ export default function StudentGamesPage() {
       )}
 
       <div className="space-y-3">
-        {games.map((game) => (
+        {games.map((game) => {
+          const opponentId = game.whitePlayerId === user?.id ? game.blackPlayerId : game.whitePlayerId;
+          const opponentName = game.whitePlayerId === user?.id ? game.blackPlayer.displayName : game.whitePlayer.displayName;
+          const opponentOnline = onlineUsers.has(opponentId);
+          return (
           <div key={game.id} className="bg-white rounded-xl shadow-sm border p-4 flex items-center gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${opponentOnline ? 'bg-green-400' : 'bg-gray-300'}`}
+                  title={opponentOnline ? `${opponentName} is online` : `${opponentName} is offline`}
+                />
                 <p className="font-medium text-sm">
                   {game.whitePlayer.displayName} vs {game.blackPlayer.displayName}
                 </p>
@@ -174,7 +186,7 @@ export default function StudentGamesPage() {
               </Link>
             )}
           </div>
-        ))}
+        );})}
         {games.length === 0 && (
           <div className="text-center py-16 text-gray-400">
             <p className="text-4xl mb-4">♟</p>

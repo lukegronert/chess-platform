@@ -6,6 +6,9 @@ import { prisma } from '../config/prisma.js';
 import { makeMove, getGameResult, getGame, removeGame, initGame } from '../services/game.service.js';
 
 export function setupGameSocket(socket: Socket, io: SocketServer, user: JwtPayload): void {
+  // Track which game rooms this socket has joined (for disconnect cleanup)
+  const joinedGames = new Set<string>();
+
   // Join a game room
   socket.on(SOCKET_EVENTS.GAME_JOIN, async ({ gameId }: { gameId: string }) => {
     const game = await prisma.gameSession.findUnique({ where: { id: gameId } });
@@ -15,6 +18,14 @@ export function setupGameSocket(socket: Socket, io: SocketServer, user: JwtPaylo
     if (!isPlayer) return;
 
     socket.join(`game:${gameId}`);
+    joinedGames.add(gameId);
+
+    // Notify the opponent that this player is now in the room
+    socket.to(`game:${gameId}`).emit(SOCKET_EVENTS.GAME_PRESENCE, {
+      gameId,
+      userId: user.sub,
+      online: true,
+    });
 
     // If game is active but not in memory (server restart), reinit
     if (game.status === GameStatus.ACTIVE && !getGame(gameId)) {
@@ -24,6 +35,12 @@ export function setupGameSocket(socket: Socket, io: SocketServer, user: JwtPaylo
 
   socket.on(SOCKET_EVENTS.GAME_LEAVE, ({ gameId }: { gameId: string }) => {
     socket.leave(`game:${gameId}`);
+    joinedGames.delete(gameId);
+    socket.to(`game:${gameId}`).emit(SOCKET_EVENTS.GAME_PRESENCE, {
+      gameId,
+      userId: user.sub,
+      online: false,
+    });
   });
 
   // Handle a move
@@ -177,6 +194,16 @@ export function setupGameSocket(socket: Socket, io: SocketServer, user: JwtPaylo
       }
     },
   );
+
+  socket.on('disconnect', () => {
+    for (const gameId of joinedGames) {
+      socket.to(`game:${gameId}`).emit(SOCKET_EVENTS.GAME_PRESENCE, {
+        gameId,
+        userId: user.sub,
+        online: false,
+      });
+    }
+  });
 
   // In-game chat
   socket.on(SOCKET_EVENTS.GAME_CHAT, async ({ gameId, content }: { gameId: string; content: string }) => {

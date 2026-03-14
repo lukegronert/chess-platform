@@ -28,6 +28,12 @@ export const SOCKET_EVENTS = {
 
   // Class board
   BOARD_NEW_POST: 'board:new-post',
+
+  // Presence
+  GAME_PRESENCE: 'game:presence',
+  USER_ONLINE: 'user:online',
+  USER_OFFLINE: 'user:offline',
+  USERS_ONLINE: 'user:online-list',
 } as const;
 
 // ── Payload types ──────────────────────────────────────────────────────────
@@ -96,4 +102,18 @@ export interface BoardNewPostPayload {
   postId: string;
   authorName: string;
   preview: string;
+}
+
+export interface GamePresencePayload {
+  gameId: string;
+  userId: string;
+  online: boolean;
+}
+
+export interface UserOnlinePayload {
+  userId: string;
+}
+
+export interface UsersOnlinePayload {
+  userIds: string[];
 }

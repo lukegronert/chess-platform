@@ -8,6 +8,7 @@ import { ChessBoard } from '@/components/chess/ChessBoard';
 import { MoveHistory } from '@/components/chess/MoveHistory';
 import { GameChat } from '@/components/chess/GameChat';
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { GameStatus, GameResult } from '@chess/shared';
 import type { GameSession } from '@chess/shared';
 
@@ -15,7 +16,14 @@ interface PageProps {
   params: { gameId: string };
 }
 
-export default function LiveGamePage({ params }: PageProps) {
+const resultLabel: Record<GameResult, string> = {
+  [GameResult.WHITE_WINS]: 'White wins',
+  [GameResult.BLACK_WINS]: 'Black wins',
+  [GameResult.DRAW]: 'Draw',
+  [GameResult.ABANDONED]: 'Game abandoned',
+};
+
+export default function TeacherLiveGamePage({ params }: PageProps) {
   const { gameId } = params;
   const { setGame } = useGameStore();
 
@@ -28,24 +36,34 @@ export default function LiveGamePage({ params }: PageProps) {
     if (gameData) setGame(gameData);
   }, [gameData, setGame]);
 
-  const { activeGame, moves, currentFen, result, isMyTurn, playingAs, opponentInRoom, drawOfferedByOpponent, sendMove, resign, offerDraw, respondDraw, sendChat } =
-    useGame(gameId);
+  const {
+    activeGame,
+    moves,
+    currentFen,
+    result,
+    isMyTurn,
+    playingAs,
+    opponentInRoom,
+    drawOfferedByOpponent,
+    sendMove,
+    resign,
+    offerDraw,
+    respondDraw,
+    sendChat,
+  } = useGame(gameId);
 
   if (!activeGame) {
-    return (
-      <div className="flex items-center justify-center h-full text-gray-400">Loading game...</div>
-    );
+    return <div className="flex items-center justify-center h-full text-gray-400">Loading game...</div>;
   }
 
   const isActive = activeGame.status === GameStatus.ACTIVE;
   const isOver = result !== null || activeGame.status === GameStatus.COMPLETED;
-
-  const resultLabel: Record<GameResult, string> = {
-    [GameResult.WHITE_WINS]: 'White wins',
-    [GameResult.BLACK_WINS]: 'Black wins',
-    [GameResult.DRAW]: 'Draw',
-    [GameResult.ABANDONED]: 'Game abandoned',
-  };
+  const opponentName = playingAs === 'w'
+    ? activeGame.blackPlayer.displayName
+    : activeGame.whitePlayer.displayName;
+  const myName = playingAs === 'w'
+    ? activeGame.whitePlayer.displayName
+    : activeGame.blackPlayer.displayName;
 
   return (
     <div className="flex h-full gap-0">
@@ -57,9 +75,7 @@ export default function LiveGamePage({ params }: PageProps) {
             className={`w-2 h-2 rounded-full ${opponentInRoom ? 'bg-green-400' : 'bg-gray-500'}`}
             title={opponentInRoom ? 'In game room' : 'Not in game room'}
           />
-          {playingAs === 'w'
-            ? activeGame.blackPlayer.displayName
-            : activeGame.whitePlayer.displayName}
+          {opponentName}
           {!isMyTurn && isActive && opponentInRoom && (
             <span className="text-yellow-400 animate-pulse">thinking...</span>
           )}
@@ -78,22 +94,22 @@ export default function LiveGamePage({ params }: PageProps) {
           />
         </div>
 
-        {/* Player info */}
-        <div className="mt-3 text-white text-sm">
-          {playingAs === 'w'
-            ? activeGame.whitePlayer.displayName
-            : activeGame.blackPlayer.displayName}
-          {isMyTurn && isActive && <span className="ml-2 text-green-400">your turn</span>}
+        {/* My info */}
+        <div className="mt-3 text-white text-sm flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-green-400" />
+          {myName}
+          {isMyTurn && isActive && <span className="text-green-400">your turn</span>}
         </div>
 
-        {/* Game over banner */}
         {isOver && result && (
           <div className="mt-4 bg-white text-gray-900 px-6 py-3 rounded-xl text-center shadow-lg">
             <p className="font-bold text-lg">{resultLabel[result]}</p>
+            <Link href="/teacher/games" className="text-sm text-blue-600 hover:underline mt-1 block">
+              Back to games
+            </Link>
           </div>
         )}
 
-        {/* Draw offer */}
         {drawOfferedByOpponent && isActive && (
           <div className="mt-4 bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-xl text-center">
             <p className="text-sm mb-2">Opponent offered a draw</p>
@@ -104,7 +120,6 @@ export default function LiveGamePage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Controls */}
         {isActive && (
           <div className="mt-4 flex gap-2">
             <button onClick={offerDraw} className="text-sm border border-white/30 text-white px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
@@ -117,7 +132,7 @@ export default function LiveGamePage({ params }: PageProps) {
         )}
       </div>
 
-      {/* Right panel: move history + chat */}
+      {/* Right panel */}
       <div className="w-72 bg-white border-l flex flex-col">
         <div className="flex-1 overflow-hidden">
           <div className="h-1/2 overflow-hidden border-b p-2">

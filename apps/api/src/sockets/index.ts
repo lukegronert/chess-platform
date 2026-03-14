@@ -9,6 +9,9 @@ import { setupMessagingSocket } from './messaging.socket.js';
 
 export let io: SocketServer;
 
+// Track how many active connections each user has (for multi-tab support)
+const userConnectionCount = new Map<string, number>();
+
 export function setupSocketServer(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: {
@@ -37,11 +40,27 @@ export function setupSocketServer(httpServer: HttpServer): SocketServer {
 
     socket.emit(SOCKET_EVENTS.AUTHENTICATED, { userId: user.sub });
 
+    // Global presence: send current online users to new connection
+    socket.emit(SOCKET_EVENTS.USERS_ONLINE, { userIds: [...userConnectionCount.keys()] });
+
+    // If this is the user's first connection, broadcast them as online
+    const prev = userConnectionCount.get(user.sub) ?? 0;
+    userConnectionCount.set(user.sub, prev + 1);
+    if (prev === 0) {
+      socket.broadcast.emit(SOCKET_EVENTS.USER_ONLINE, { userId: user.sub });
+    }
+
     setupGameSocket(socket, io, user);
     setupMessagingSocket(socket, io, user);
 
     socket.on('disconnect', () => {
-      // cleanup handled per-socket in game socket
+      const count = (userConnectionCount.get(user.sub) ?? 1) - 1;
+      if (count <= 0) {
+        userConnectionCount.delete(user.sub);
+        io.emit(SOCKET_EVENTS.USER_OFFLINE, { userId: user.sub });
+      } else {
+        userConnectionCount.set(user.sub, count);
+      }
     });
   });
 

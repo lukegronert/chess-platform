@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Chess } from 'chess.js';
 import { connectSocket } from '@/lib/socket';
 import { useGameStore } from '@/stores/gameStore';
 import { useAuthStore } from '@/stores/authStore';
 import { SOCKET_EVENTS } from '@chess/shared';
-import type { GameMoveServerPayload, GameEndedPayload, GameDrawOfferPayload } from '@chess/shared';
+import type { GameMoveServerPayload, GameEndedPayload, GameDrawOfferPayload, GamePresencePayload } from '@chess/shared';
 
 export function useGame(gameId: string) {
   const { user } = useAuthStore();
   const { activeGame, moves, currentFen, result, drawOfferedByOpponent, addMove, setEnded, setDrawOffer } =
     useGameStore();
+  const [opponentInRoom, setOpponentInRoom] = useState(false);
 
   useEffect(() => {
     const socket = connectSocket();
@@ -36,13 +37,20 @@ export function useGame(gameId: string) {
       }
     });
 
+    socket.on(SOCKET_EVENTS.GAME_PRESENCE, (payload: GamePresencePayload) => {
+      if (payload.gameId === gameId && payload.userId !== user?.id) {
+        setOpponentInRoom(payload.online);
+      }
+    });
+
     return () => {
       socket.emit(SOCKET_EVENTS.GAME_LEAVE, { gameId });
       socket.off(SOCKET_EVENTS.GAME_MOVE);
       socket.off(SOCKET_EVENTS.GAME_ENDED);
       socket.off(SOCKET_EVENTS.GAME_DRAW_OFFER);
+      socket.off(SOCKET_EVENTS.GAME_PRESENCE);
     };
-  }, [gameId, addMove, setEnded, setDrawOffer]);
+  }, [gameId, addMove, setEnded, setDrawOffer, user?.id]);
 
   const sendMove = useCallback(
     (uci: string) => {
@@ -102,6 +110,7 @@ export function useGame(gameId: string) {
     drawOfferedByOpponent,
     isMyTurn,
     playingAs,
+    opponentInRoom,
     sendMove,
     resign,
     offerDraw,
