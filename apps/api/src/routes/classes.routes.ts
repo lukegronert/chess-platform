@@ -27,6 +27,10 @@ router.delete('/:id/groups/:groupId', requireRole(Role.TEACHER, Role.ADMIN), cla
 router.post('/:id/groups/:groupId/members', requireRole(Role.TEACHER, Role.ADMIN), classesController.addGroupMember);
 router.delete('/:id/groups/:groupId/members/:userId', requireRole(Role.TEACHER, Role.ADMIN), classesController.removeGroupMember);
 
+// PDFs & Leaderboard
+router.get('/:id/pdfs', classesController.listClassPdfs);
+router.get('/:id/leaderboard', classesController.getLeaderboard);
+
 // Sub-routers
 router.use('/:id/curriculum', curriculumRoutes);
 router.use('/:id/board', boardRoutes);
