@@ -143,3 +143,54 @@ export async function getMoves(req: Request, res: Response, next: NextFunction):
     next(err);
   }
 }
+
+export async function listAllGames(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const games = await prisma.gameSession.findMany({
+      include: gameInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(games);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listTeacherStudentGames(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const enrollments = await prisma.classEnrollment.findMany({
+      where: { class: { teacherId: req.user.sub } },
+      select: { studentId: true },
+    });
+    const studentIds = [...new Set(enrollments.map((e) => e.studentId))];
+
+    const games = await prisma.gameSession.findMany({
+      where: {
+        OR: [
+          { whitePlayerId: { in: studentIds } },
+          { blackPlayerId: { in: studentIds } },
+        ],
+      },
+      include: gameInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(games);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getGameMessages(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const messages = await prisma.message.findMany({
+      where: { gameId: req.params.id, isDeleted: false },
+      include: {
+        sender: { select: { id: true, displayName: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json(messages);
+  } catch (err) {
+    next(err);
+  }
+}

@@ -79,6 +79,7 @@ export function AdminSidebar() {
     { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
     { href: '/admin/users', label: 'Users', icon: '👥' },
     { href: '/admin/classes', label: 'Classes', icon: '🏫' },
+    { href: '/admin/games', label: 'Games', icon: '♟' },
     { href: '/admin/announcements', label: 'Announcements', icon: '📢' },
   ];
   return <Sidebar items={items} title="Admin" />;
@@ -89,6 +90,7 @@ export function TeacherSidebar() {
   const items: NavItem[] = [
     { href: '/teacher/dashboard', label: 'Dashboard', icon: '📊' },
     { href: '/teacher/classes', label: 'My Classes', icon: '🏫' },
+    { href: '/teacher/games', label: 'Student Games', icon: '♟' },
     { href: '/teacher/messages', label: 'Messages', icon: '💬', badge: unreadDms },
     { href: '/teacher/content', label: 'Content', icon: '📄' },
   ];
